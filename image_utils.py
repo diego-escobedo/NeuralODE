@@ -60,12 +60,13 @@ class BoundingBox():
     # smps = BB.sampleuniform(t_N = 30, x_N = 10, y_N = 11, z_N=12, bbscale = 1.1);
     # smps = BB.samplerandom(N = 10000, bbscale = 1.1);
     
-    def __init__(self, z_target_full):
+    def __init__(self, z_target_full, device=None):
         self.T = z_target_full.shape[0]; 
-        self.dim = z_target_full.shape[2];
+        self.dim = z_target_full.shape[2]
+        self.device = device
         
         # min corner, max corner, center
-        self.mic = z_target_full.reshape(-1,self.dim).min(0)[0];
+        self.mic = z_target_full.reshape(-1,self.dim).min(0)[0]
         self.mac = z_target_full.reshape(-1,self.dim).max(0)[0]; 
         self.C = (self.mic+self.mac)/2; 
         
@@ -73,32 +74,32 @@ class BoundingBox():
         # extended bounding box.
         emic = (self.mic-self.C)*bbscale+self.C; 
         emac = (self.mac-self.C)*bbscale+self.C; 
-        return emic, emac;
+        return emic, emac
         
     def sampleuniform(self, t_N = 30, x_N = 10, y_N = 11, z_N = 12, bbscale = 1.1):
-        [eLL,eTR] = self.extendedBB(bbscale);
+        [eLL,eTR] = self.extendedBB(bbscale)
         
-        tspace = torch.linspace(0, self.T-1, t_N);
-        xspace = torch.linspace(eLL[0], eTR[0], x_N);
-        yspace = torch.linspace(eLL[1], eTR[1], y_N);
+        tspace = torch.linspace(0, self.T-1, t_N)
+        xspace = torch.linspace(eLL[0], eTR[0], x_N)
+        yspace = torch.linspace(eLL[1], eTR[1], y_N)
         if self.dim == 3:
-            zspace = torch.linspace(eLL[2], eTR[2], z_N);
-            xgrid,ygrid,zgrid,tgrid=torch.meshgrid(xspace,yspace,zspace,tspace);
-            z_sample = torch.transpose(torch.reshape(torch.stack([tgrid,xgrid,ygrid,zgrid]),(4,-1)),0,1).to(device);
+            zspace = torch.linspace(eLL[2], eTR[2], z_N)
+            xgrid,ygrid,zgrid,tgrid=torch.meshgrid(xspace,yspace,zspace,tspace)
+            z_sample = torch.transpose(torch.reshape(torch.stack([tgrid,xgrid,ygrid,zgrid]),(4,-1)),0,1).to(self.device)
         else:
-            xgrid,ygrid,tgrid=torch.meshgrid(xspace,yspace,tspace);
-            z_sample = torch.transpose(torch.reshape(torch.stack([tgrid,xgrid,ygrid]),(3,-1)),0,1).to(device);
+            xgrid,ygrid,tgrid=torch.meshgrid(xspace,yspace,tspace)
+            z_sample = torch.transpose(torch.reshape(torch.stack([tgrid,xgrid,ygrid]),(3,-1)),0,1).to(self.device)
         
-        return z_sample.to(device)
+        return z_sample.to(self.device)
     
     def samplerandom(self, N = 10000, bbscale = 1.1):
-        [eLL,eTR] = self.extendedBB(bbscale);
+        [eLL,eTR] = self.extendedBB(bbscale)
         # time goes from 0 to T-1
-        dT = torch.Tensor([self.T-1]).to(device); # size of time begin to end
-        TC = torch.Tensor([(self.T-1.0)/2.0]).to(device); # time center
+        dT = torch.Tensor([self.T-1]).to(self.device); # size of time begin to end
+        TC = torch.Tensor([(self.T-1.0)/2.0]).to(self.device); # time center
         
-        z_sample = torch.rand(N, self.dim + 1).to(device)-0.5;
+        z_sample = torch.rand(N, self.dim + 1).to(self.device)-0.5
         deltx = torch.cat((dT,eTR-eLL))
-        z_sample = deltx*z_sample + torch.cat((TC,self.C));
+        z_sample = deltx*z_sample + torch.cat((TC,self.C))
 
         return z_sample
